@@ -2,3 +2,8 @@
 2020 DSB projects for Team 1. 
 
 Each member should make a sub folder in here to store their files to avoid merge conflicts. 
+
+Page: 
+
+Repo: https://github.com/cdrlos/DSB-Book-Reviews
+
