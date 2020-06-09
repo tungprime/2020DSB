@@ -3,7 +3,7 @@
 
 Each member should make a sub folder in here to store their files to avoid merge conflicts. 
 
-Page: 
+Page: https://cdrlos.github.io/DSB-Book-Reviews/
 
 Repo: https://github.com/cdrlos/DSB-Book-Reviews
 
