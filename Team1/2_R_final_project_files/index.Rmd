@@ -1,0 +1,261 @@
+---
+title: "Predicting book success"
+author: "Samal Abdikerimova, Ravi Donepudi, Carlos Salinas, and Xiran Yu"
+date: today
+output:
+  html_document:
+    toc: yes
+    toc_depth: 2
+    theme: united
+    highlight: default
+    self_contained: yes
+---
+
+# Book review statistics
+
+```{r setup, include = FALSE}
+library("broom")
+library("forcats")
+library("tidyverse")
+library("gganimate")
+```
+
+[rgoodreads]: https://github.com/Famguy/rgoodreads
+[goodreads-kaggle]: https://www.kaggle.com/jealousleopard/goodreadsbooks/
+# About the data
+There is a Goodreads API and an R interface to accompany it, however we will be using the data set found on Kaggle [here][goodreads-kaggle] because it is proving far too difficult to gather and process data from the Goodreads API.
+
+First we will import the data and take a look at its contents. 
+```{r import-books_csv, message = FALSE, warning = FALSE}
+books <- read_csv("data/books.csv") %>%
+    rename(rating = average_rating,
+           total_ratings = ratings_count,
+           lang = language_code,
+           pages = num_pages) %>%
+    na.omit()
+books
+```
+
+So it looks like we are working with `r ncol(books)` variables, and `r nrow(books)` observations. Some of these variables are redundant and, for our purposes, can be ignored.
+
+```{r }
+books$bookID <- NULL
+books$isbn <- NULL
+books$isbn13 <- NULL
+```
+
+## Publication language
+Since we speak English we'd like to focus solely on English language books. But first let's see how many of them we have
+
+```{r, message = FALSE, warning = FALSE}
+books %>%
+    subset(is.na(as.numeric(lang))) %>%
+    subset(!is.na(lang)) %>%
+    group_by(lang) %>%
+    tally() %>%
+    arrange(desc(n)) %>%
+    slice(1:10) %>%
+    ggplot(aes(x = factor(lang, levels = lang), y = n, fill = lang)) +
+    geom_bar(stat = "identity") +
+    labs(title = "Title number of books by language",
+         x = "language",
+         y = "number of books") +
+    theme(axis.text.x = element_text(angle=90, hjust=1))
+```
+
+So the overwhelming majority of the data is in `eng` so we don't loose much by ignoring the other publications. However, it looks like US and Great Britain version of books fall under a different language tag (and if we search hard Canadian too). For our purposes `"en-CA", `"en-GB"`, and `en-US` are the same so let us clean up the data a little 
+
+```{r eng_replace, eval = FALSE}
+books$lang <- books %>%
+    pull(lang) %>%
+    str_replace_all("en*(g|-GB|-US|-CA)", "eng")
+```
+
+One thing we might one to look at first is the distribution of ratings for English books. We do this as follows
+
+```{r plot ratings, message = FALSE, warning = FALSE}
+eng_books %>%
+    group_by(rating) %>%
+    summarize(total_books = n()) %>%
+    ungroup() %>%
+    ggplot(aes(x = rating)) +
+    geom_bar(aes(y = total_books/1.000001, fill = rating),
+             stat = "identity") +
+    labs(title = "Total number of books per rating",
+         x = "average rating",
+         y = "number of books")
+```
+
+OK, to make better sense of this data let's take a look at how many people are reading these books
+
+and who are the most prolific writers
+
+```{r prolific writers, message = FALSE, warning = FALSE}
+prolific_writer_names <- eng_books %>%
+    group_by(authors) %>%
+    summarize(count = n()) %>%
+    arrange(desc(count)) %>%
+    ungroup() %>%
+    slice(1:10) %>%
+    pull(authors)
+
+prolific_writers <- eng_books %>% filter(authors %in% prolific_writer_names)
+prolific_writers
+```
+
+Stephen King—that was sort of expected—and who are the top rated authors
+
+```{r naive top authors, message = FALSE, warning = FALSE}
+eng_books %>%
+    group_by(authors) %>%
+    summarize(average_rating = sum(rating)/n()) %>%
+    arrange(desc(average_rating)) %>%
+    ungroup() %>%
+    slice(1:10)
+```
+
+who are these people? So highly rated authors are not necessarily notable ones, perhaps there is a better way to measure top authors.
+
+```{r good books, message = FALSE, warning = FALSE}
+eng_books %>%
+    (function(...) {
+        tmp <- tibble(...)
+        tmp$authors <- tmp$authors %>%
+            str_replace_all("Margaret Weis/Tracy Hickman",
+                            "Weis/Hickman")
+        tmp}) %>%
+    group_by(authors) %>%
+    summarize(book_count = n(),
+              sum_rating = sum(rating)) %>%
+    arrange(desc(sum_rating)) %>%
+    slice(1:10) %>%
+    ggplot(aes(factor(authors, levels = authors), sum_rating, fill = authors)) +
+    geom_col() +
+    coord_flip() +
+    labs(title = "Author rankings",
+         y = "author",
+         x = "sum rating") +
+    scale_fill_brewer(palette="Spectral")
+```
+
+```{r average rating, message = FALSE, rating = FALSE}
+prolific_writers %>%
+    (function(...) {
+        tmp <- tibble(...)
+        tmp$authors <- tmp$authors %>%
+            str_replace_all("Margaret Weis/Tracy Hickman",
+                            "Weis/Hickman")
+        tmp}) %>%
+    group_by(authors) %>%
+    summarize(avg_rat = sum(rating)/n()) %>%
+    ungroup() %>%
+    ggplot(aes(x = authors, y = avg_rat, fill = authors)) +
+    geom_bar(stat = "identity") +
+    labs(title = "Top 10 average author rating",
+          x = "auhor",
+          y = "average rating") +
+    theme(axis.text.x = element_text(angle = 90))
+```
+
+```{r, message = FALSE, warning = FALSE}
+eng_books <- eng_books %>%
+    mutate(publication_year = as.numeric(str_sub(publication_date, -4)))
+```
+
+```{r publications per year, message = FALSE, warning = FALSE}
+eng_books %>% group_by(publication_year) %>%
+    summarize(total_books = n()) %>%
+    ungroup() %>%
+    ggplot(aes(x = publication_year, y = total_books)) +
+    geom_point() +
+    xlim(1900, 2020) +
+    labs(x = "publication year",
+         y = "books published")
+```
+
+```{r, message = FALSE, rating = FALSE}
+books_per_year <- eng_books %>% group_by(publication_year) %>%
+    summarize(total_books = n()) %>%
+    arrange(desc(total_books)) %>%
+    ungroup()
+```
+
+```{r, warning = FALSE, rating = FALSE}
+model_publish_books <- books_per_year %>%
+    filter(publication_year <= 2006) %>%
+    lm(log(total_books) ~ publication_year, .)
+
+filtered_model <- books_per_year %>%
+    filter(publication_year > 2006) %>%
+    lm(log(total_books) ~ publication_year, .)
+
+model_publish_books %>% tidy()
+filtered_model %>% tidy()
+
+estimate_2020 <-
+    predict(model_publish_books,
+            newdata = data.frame(publication_year = seq(2015,2020)))
+```
+
+```{r, message = FALSE, rating = FALSE}
+stephen_king <- books %>% filter(authors == "Stephen King" &
+                                 title != "Blood and Smoke" &
+                                 title != "LT's Theory of Pets")
+sk_model <- lm(rating ~ pages, stephen_king)
+sk_model %>% tidy()
+
+predict(sk_model,
+        newdata = data.frame(pages = c(300)))
+```
+
+```{r, message = FALSE, rating = FALSE}
+stephen_king %>% summarize(mean = mean(pages))
+```
+
+```{r, message = FALSE, warning = FALSE}
+eng_books$publisher <- factor(eng_books$publisher)
+```
+
+```{r, message = FALSE, warning = FALSE }
+top_10_publishers <- eng_books %>%
+    group_by(publisher) %>%
+    summarize(total_books = n()) %>%
+    arrange(desc(total_books)) %>%
+    slice(1:10) %>%
+    pull(publisher)
+```
+
+```{r, message = FALSE, warning = FALSE}
+eng_books_tp <- eng_books %>%
+    filter(publisher %in% top_10_publishers)
+```
+
+```{r , message = FALSE, warning = FALSE}
+eng_books_tp %>%
+    filter(publication_year >= 2000 &
+           publication_year < 2007) %>%
+    ggplot(aes(x = fct_reorder(publisher, rating),
+               y = rating, color = publisher)) +
+    geom_boxplot() +
+    labs(title = "Publisher rating",
+         x = "publisher") +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    transition_states(publication_year,
+                      transition_length = 2,
+                      state_length = 4) +
+    enter_fade() +
+    exit_shrink() +
+    ease_aes('sine-in-out')
+```
+
+Two publishers stand out from among the rest, VIZ Media LLC and Harper Collins. VIZ media publishes graphic novels and comic books which have a higher average rating than books. 
+
+```{r number of books}
+eng_books_tp %>% filter(publisher == "Grand Central Publishing") %>%
+    summarize(total = n())
+```
+
+```{r }
+eng_books_tp %>% group_by(publisher) %>%
+    summarize(n = n(), prop = mean(rating))
+```
