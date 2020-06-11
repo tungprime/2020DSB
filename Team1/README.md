@@ -1,9 +1,9 @@
 # 2020DSB
 2020 DSB projects for Team 1. 
 
-Each member should make a sub folder in here to store their files to avoid merge conflicts. 
+Mini Project Page: https://cdrlos.github.io/DSB-Book-Reviews/
 
-Page: https://cdrlos.github.io/DSB-Book-Reviews/
+Mini Project Repo: https://github.com/cdrlos/DSB-Book-Reviews/
 
-Repo: https://github.com/cdrlos/DSB-Book-Reviews
+Add other links here as necessary
 
