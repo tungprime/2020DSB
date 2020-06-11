@@ -1,0 +1,19 @@
+---
+title: "More information"
+author: "Rocco Davino, Tung Nguyen, Sungwoo Nam"
+date: "Last updated on `r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+    toc_float: true
+    df_print: kable
+---
+
+<!--
+Comments in HTML are like this! 
+-->
+
+# More Info
+
+There is no additional info.

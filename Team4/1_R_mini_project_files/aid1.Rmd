@@ -1,0 +1,165 @@
+---
+title: "Aids Data Set"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+```
+
+We decided to answer Question 2: HOW MUCH DO THEY DONATE? How much do countries donate and receive? Who donates the most/least? Are there countries that donate and also receive? How does the amount donated/received by country change over time?
+
+```{r, echo = FALSE}
+aid <- read.csv(file="aiddata-countries-only.csv")
+```
+
+This next table displays the amount donated by country.
+
+```{r, message=FALSE}
+aid %>%
+  group_by(donor) %>%
+  summarise(total_donation=sum(commitment_amount_usd_constant)) %>% 
+  slice(1:10)
+```
+
+```{r, message=FALSE}
+aid %>%
+  group_by(donor) %>%
+  summarise(total_donation=sum(commitment_amount_usd_constant)) %>%
+  arrange(desc(total_donation)) %>%
+  slice(1:5) %>% 
+  ggplot()+
+   geom_bar(mapping=aes(x=donor, y=total_donation, fill=donor ), stat="identity") +
+   labs(title="Top five donors", x="Donor", y="Total donation")
+```
+
+Here are the bottom five donors.
+
+```{r, message=FALSE}
+aid %>%
+  group_by(donor) %>%
+  summarise(total_donation=sum(commitment_amount_usd_constant)) %>%
+  arrange(total_donation) %>%
+  slice(1:5)%>% 
+  ggplot()+
+   geom_bar(mapping=aes(x=donor, y=total_donation, fill=donor ), stat="identity") +
+   labs(title="Bottom five donors", x="Donor", y="Total donation")
+```
+
+Similarly, this table displays the amount received by country.
+
+```{r, message = FALSE}
+aid %>%
+  group_by(recipient) %>%
+  summarise(total_receipt=sum(commitment_amount_usd_constant)) %>% 
+  slice(1:10)
+```
+
+Five top recipients.
+
+```{r, message=FALSE}
+aid %>%
+  group_by(recipient) %>%
+  summarise(total_receipt=sum(commitment_amount_usd_constant)) %>%
+  arrange(desc(total_receipt)) %>%
+  slice(1:5)%>% 
+  ggplot()+
+   geom_bar(mapping=aes(x=recipient, y=total_receipt, fill=recipient ), stat="identity") +
+   labs(title="Top five recipients", x="Recipient", y="Total receipt")
+```
+
+Five bottom recipients.
+
+```{r, message=FALSE}
+aid %>%
+  group_by(recipient) %>%
+  summarise(total_receipt=sum(commitment_amount_usd_constant)) %>%
+  arrange(total_receipt) %>%
+  slice(1:5)%>% 
+  ggplot()+
+   geom_bar(mapping=aes(x=recipient, y=total_receipt, fill=recipient ), stat="identity") +
+   labs(title="Bottom five recipients", x="Recipient", y="Total receipt")
+```
+
+These above tables answer Question 1 and 2. 
+
+Question 3: which countries both receive and donate?
+For Question 3, we made two dataframes, one containing distinct donors and another with distinct recipients. We used inner join on the donors and recipients tables to solve this problem.
+
+```{r, results='hide'}
+donors <- aid %>%
+  distinct(donor)
+donors
+```
+
+```{r, results='hide'}
+recipients <- aid %>%
+  distinct(recipient)
+recipients
+```
+
+
+```{r}
+donors %>% inner_join(recipients, by=c("donor"="recipient")) %>% 
+  slice(1:20)
+```
+
+To address the last question, we first considered just Australia and tracked the amount donated and received over time.
+
+```{r, results='hide', message=FALSE}
+aus_donate <- aid %>%
+  filter(donor =="Australia") %>%
+  group_by(year) %>%
+  summarise(total_donation=sum(commitment_amount_usd_constant))
+aus_donate
+```
+
+```{r, results='hide', message=FALSE}
+aus_receipt <- aid %>%
+  filter(recipient =="Australia") %>%
+  group_by(year) %>%
+  summarise(total_receipt=sum(commitment_amount_usd_constant))
+aus_receipt
+```
+
+```{r}
+aus_donate %>% 
+  left_join(aus_receipt, by = "year") %>%
+  ggplot()+
+  geom_line(mapping=aes(x=year, y=total_donation, color="donor"), na.rm=TRUE)+
+  geom_line(mapping=aes(x=year, y=total_receipt, color="receipt"), na.rm=TRUE) +
+  labs(title = "Donation and receipt from Australia", x="Year", y="Amount") 
+  
+```
+
+However, we decided that it would be best to look at total donations for all countries over time.
+
+```{r, message=FALSE}
+aid %>%
+  group_by(year) %>%
+  summarise(total_donation_1=sum(commitment_amount_usd_constant)) %>%
+  ggplot(mapping=aes(x=year, y=total_donation_1))+
+  geom_line() +
+  labs(title="Total donations over the year", x="Year", y="Total donation")
+```
+
+Alternatively...
+
+```{r, message=FALSE}
+aid %>%
+  group_by(donor, year) %>%
+  summarize(tot_don = sum(commitment_amount_usd_constant)) %>%
+  filter(donor %in% c("United States", "France", "United Kingdom", "Germany", "Japan")) %>%
+ ggplot() +
+    geom_line(mapping = aes(year, tot_don, color = donor)) +
+    labs(title="Donations of top five countries", x="Year", y="Total donation")
+```
+
+Why is there an increase around 1991? Maybe fewer countries donated?
+
+```{r}
+aid %>%
+  filter(year==1991) %>%
+  distinct(donor)
+```
