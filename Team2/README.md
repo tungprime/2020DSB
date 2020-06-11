@@ -1,8 +1,4 @@
 # 2020DSB
 2020 DSB projects for Team 2. 
 
-Mini Project Page: 
-
-Mini Project Repo: 
-
-Add other links here as necessary
+R Final project website link: https://kvasu2.github.io/2020-dsb-karthik
