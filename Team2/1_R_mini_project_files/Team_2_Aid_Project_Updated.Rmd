@@ -1,0 +1,143 @@
+---
+title: "Aid Donations in the World and the Purposes Behind Them"
+author: "Alyssa Whittemore, Tyler Billingsley, Danni Huang, Karthik Vasu, Theodore Tranel"
+date: "6/3/2020"
+output:
+  html_document:
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+setwd("/cloud/project/Day2_MiniProject01-Visualize-Transform-AidData")
+aiddata <- read_csv("1_Data/aiddata.csv")
+```
+
+```{r echo=TRUE}
+aiddata_needed <- aiddata %>% select(-X1, -aiddata_id, -aiddata_2_id)
+```
+
+```{r echo = TRUE}
+aiddata_US_donor <- aiddata_needed %>% filter(donor == "United States")
+```
+
+
+Countries throughout the globe make aid donations to other countries for various reasons. Our goal is to analyze the countries that donate and why they have donated. 
+
+```{r echo = TRUE, message = FALSE}
+aiddata_needed %>% 
+  select(-year, -recipient, -coalesced_purpose_code, -coalesced_purpose_name) %>% 
+  group_by(donor) %>% 
+  summarise( total_donated_billions = sum(commitment_amount_usd_constant) / 1000000000) %>% 
+  arrange(desc(total_donated_billions)) %>% 
+  slice(1:10)  %>% 
+  ggplot(aes(x=total_donated_billions, y=fct_reorder(donor,total_donated_billions))) + 
+  geom_col(fill = "coral3") + 
+  labs(title = "Top 10 Aid Donors", x = "Total Donated in Billions USD" , y = "Country")
+```
+
+Above are the top 10 Aid donors in the world. The United States and Japan lead in the amount of aid donations. When countries make aid donations, they also include a purpose for the donation. Below are the top ten donation purposes for all of the donations. 
+
+
+
+```{r echo = TRUE, message = FALSE}
+aiddata_needed %>% 
+  select(-year, -donor, -recipient, -coalesced_purpose_code) %>% 
+  group_by(coalesced_purpose_name) %>% 
+  summarise(total_billions = sum(commitment_amount_usd_constant) / 1000000000) %>% 
+  arrange(desc(total_billions)) %>% 
+  slice(1:10) %>% 
+  ggplot(aes(x = total_billions, y = fct_reorder(coalesced_purpose_name,total_billions)))  + 
+  geom_col(fill = "darkgreen") +
+  labs(title = "Top Ten Aid Purposes", x = "Total Donated in Billion USD", y = "Purpose" )
+```
+
+```{r echo = FALSE, message= FALSE}
+aiddata_US_donor %>% 
+  select(-year, -recipient, -coalesced_purpose_code, -donor) %>% 
+  group_by(coalesced_purpose_name) %>% 
+  summarise(total_for_purpose = sum(commitment_amount_usd_constant)) %>% 
+  arrange(desc(total_for_purpose)) %>% 
+  slice(1:10) %>% 
+  ggplot(aes(x = total_for_purpose / 1000000000, y = fct_reorder(coalesced_purpose_name,total_for_purpose))) + 
+  geom_col(fill = "aquamarine3") +
+  labs(title = "Top 10 Purposes for US Aid Donations", x = "Total Spent in Billions USD", y = "Purposes")
+```
+
+
+We can see that many of the top ten purposes for aid donation for the United States match many of the top ten purposes in general. Since the US is such a large donor, these top ten purposes may be heavily affected by what the United States thinks is the most important. 
+
+While the United States is one of the largest donors, that doesn't mean that they have the most donations or contributions to each purpose. Note below that Germany has made the most contributions towards renewable energy.
+
+```{r echo = TRUE, message = FALSE}
+aiddata %>% 
+  filter(coalesced_purpose_code == "23030") %>% 
+  group_by(donor) %>% 
+  summarize(total_contributions = n()) %>%
+  ungroup() %>% 
+arrange(desc(total_contributions)) %>% 
+  slice(1:7) %>% 
+  ggplot(mapping = aes(x = fct_reorder(donor, total_contributions ), y = total_contributions)) +
+    geom_col(fill = "gold3") +
+    #theme(axis.text.x = element_text(angle = 30, hjust = 1)) +
+    labs(title = "Number of renewable energy donations", y = "Contributions", x = "Donor") +
+    coord_flip()
+```
+
+
+We can contrast this with the total amount in USD that countries contributed to see that Japan contributed more, despite the fact that Germany made significantly more contributions. In addition, the UK and the US made lots of contributions but the contributions had a low value.
+
+```{r echo= TRUE, message = FALSE}
+aiddata %>% 
+  filter(coalesced_purpose_code == "23030") %>% 
+  group_by(donor) %>% 
+  summarize(total = sum(commitment_amount_usd_constant)) %>% 
+  ungroup() %>% 
+  arrange(desc(total)) %>% 
+  slice(1:7) %>% 
+  ggplot(mapping = aes(x = fct_rev(fct_reorder(donor,desc(total))),y = total / 1000000000)) +
+    geom_col(fill = "firebrick4") +
+    #theme(axis.text.x = element_text(angle = 30, hjust = 1)) +
+    labs(title = "Amount donated toward renewable energy", y = "Total USD Contributed (in billions)", x = "Donor") +
+    coord_flip()
+```
+
+
+
+Below, we can also see how the donations from the United States (for some of the top ten US purposes) have changed over time. You may notice that the top US Purpose, Air Transport, is no longer a top purpose in 2010. 
+
+```{r echo = TRUE, message = FALSE}
+aiddata %>%
+  filter(donor == "United States",
+    coalesced_purpose_name %in% c("Air transport",
+                              "Rail transport",
+                              "Industrial development",
+                              "Power generation/non-renewable sources",
+                              "RESCHEDULING AND REFINANCING")) %>%
+  group_by(coalesced_purpose_name,year) %>%
+  summarize(total_per_cause_per_year = sum(commitment_amount_usd_constant)) %>%
+  arrange(desc(total_per_cause_per_year)) %>%
+  ggplot() +
+    geom_line(aes(x=year,y=total_per_cause_per_year/1000000000,
+                  color=coalesced_purpose_name)) +
+    labs(x = "Year",y="Total donation(Billion USD)",
+                  title="Donations by the United States",
+                  colour="Purpose of donation (Top  4)")
+```
+
+
+```{r echo = TRUE, message = FALSE}
+aiddata %>%
+  filter(donor == "United States") %>% 
+  group_by(year)  %>% 
+  summarise(total = n()) %>% 
+  ggplot() +
+    geom_line(mapping = aes(x=year, y=total)) +
+    labs(title = "Number of Donations from the US by Year", x = "Year", y = "Number of Donations")
+```
+
+Finally, we can see that as time increased, the number of times that the United States was a donor increased quadratically.
+
+
+
+
